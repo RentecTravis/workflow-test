@@ -8,4 +8,4 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           pullRequestOpened: >
-            [{{id}}.pr.rentec.dev/login/login.php](https://{{id}}.pr.rentec.dev/)
+            View PR Site: [{{id}}.pr.rentec.dev/login/login.php](https://{{id}}.pr.rentec.dev/)
