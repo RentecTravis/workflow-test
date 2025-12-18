@@ -62,7 +62,7 @@ jobs:
 
             // Update PR body only if changed
             if (oldBody !== newBody) {
-              await github.rest.pulls.update({ owner, repo, pull_number, body: nextBody });
+              await github.rest.pulls.update({ owner, repo, pull_number, body: newBody });
             }
 
             async function ensureLabelExists() {
