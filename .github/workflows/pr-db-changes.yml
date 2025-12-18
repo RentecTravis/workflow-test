@@ -2,7 +2,7 @@ name: Auto-flag database changes
 
 on:
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
@@ -33,28 +33,32 @@ jobs:
             const addedMigrations = files.filter(f => f.status === 'added' && f.filename.startsWith(targetPrefix));
 
             // Prepare Database changes section with stable markers so we can replace it on every run
-            const START = '<!-- DATABASE_CHANGES_START -->';
-            const END = '<!-- DATABASE_CHANGES_END -->';
+            const START = "<!-- DATABASE_CHANGES_START -->"
+            const END = "<!-- DATABASE_CHANGES_END -->"
+            
             // Ensure the label state reflects presence/absence of added migrations
-            const labelName = 'Database changes';
-            const heading = '### ' + labelName;
+            const labelName = "Database changes"
+            const heading = "### " + labelName
+            const headSha = pr.head.sha
+            const lines = addedMigrations
+              .map((f) => {
+                const name = f.filename.split("/").pop()
+                const url = `https://github.com/${owner}/${repo}/blob/${headSha}/${f.filename}`
+                return `- [${name}](${url})`
+              })
+              .join("\n")
 
-            const headSha = pr.head.sha;
-
-            let section = '';
-            if (addedMigrations.length > 0) {
-              const lines = addedMigrations.map(f => {
-                const name = f.filename.split('/').pop();
-                const url = `https://github.com/${owner}/${repo}/blob/${headSha}/${f.filename}`;
-                return `- [${name}](${url})`;
-              });
-              section = `${START}\n${heading}\n\nThis PR adds the following migration files:\n\n${lines.join('\n')}\n\n${END}`;
-            }
+            const section =
+              lines.length > 0
+                ? `${START}\n${heading}\n\nThis PR adds the following migration files:\n\n${lines}\n\n${END}`
+                : ""
 
             // Get current body and strip any existing section
-            const currentBody = pr.body || '';
-            const removed = currentBody.replace(new RegExp(`${START}[\s\S]*?${END}`, 'g'), '').trimEnd();
-            const nextBody = section ? (removed ? removed + '\n\n' + section : section) : removed;
+            const oldBody = pr.body || ""
+            const bodySansDbChanges = oldBody
+              .replace(new RegExp(`${START}[\\s\\S]*?${END}`, "g"), "")
+              .trimEnd()
+            const newBody = [bodySansDbChanges, section].filter(Boolean).join("\n\n")
 
             // Update PR body only if changed
             if ((currentBody || '') !== nextBody) {
@@ -94,14 +98,12 @@ jobs:
                   labels: [labelName]
                 });
               }
-            } else {
+            } else if (hasLabel) {
               // Remove label if no DB changes remain
-              if (hasLabel) {
-                try {
-                  await github.rest.issues.removeLabel({ owner, repo, issue_number: pull_number, name: labelName });
-                } catch (e) {
-                  // Ignore 404 if label was already removed
-                  if (e.status !== 404) throw e;
-                }
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: pull_number, name: labelName });
+              } catch (e) {
+                // Ignore 404 if label was already removed
+                if (e.status !== 404) throw e;
               }
             }
