@@ -1,0 +1,107 @@
+name: PR Database Changes annotator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  annotate-and-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-add Database Changes section and label to PRs with migration files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pr = context.payload.pull_request;
+            const pull_number = pr.number;
+
+            // Fetch changed files in the PR (paginate to be safe)
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner, repo, pull_number, per_page: 100 }
+            );
+
+            // Consider only newly added files under the migrations path
+            const targetPrefix = 'database/rentec/schema/migrations/';
+            const addedMigrations = files.filter(f => f.status === 'added' && f.filename.startsWith(targetPrefix));
+
+            // Prepare Database Changes section with stable markers so we can replace it on every run
+            const START = '<!-- DATABASE_CHANGES_START -->';
+            const END = '<!-- DATABASE_CHANGES_END -->';
+            // Ensure the label state reflects presence/absence of added migrations
+            const labelName = 'Database Changes';
+            const heading = '### ' + labelName;
+
+            const headSha = pr.head.sha;
+
+            let section = '';
+            if (addedMigrations.length > 0) {
+              const lines = addedMigrations.map(f => {
+                const name = f.filename.split('/').pop();
+                const url = `https://github.com/${owner}/${repo}/blob/${headSha}/${f.filename}`;
+                return `- [${name}](${url})`;
+              });
+              section = `${START}\n${heading}\n\nThe following migration files were added in this PR:\n\n${lines.join('\n')}\n\n${END}`;
+            }
+
+            // Get current body and strip any existing section
+            const currentBody = pr.body || '';
+            const removed = currentBody.replace(new RegExp(`${START}[\s\S]*?${END}`, 'g'), '').trimEnd();
+            const nextBody = section ? (removed ? removed + '\n\n' + section : section) : removed;
+
+            // Update PR body only if changed
+            if ((currentBody || '') !== nextBody) {
+              await github.rest.pulls.update({ owner, repo, pull_number, body: nextBody });
+            }
+
+            async function ensureLabelExists() {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: labelName });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: labelName,
+                    color: '1778d3',
+                    description: 'PR introduces database migration files'
+                  });
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+            // Read current labels on the PR
+            const prLabels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
+            const hasLabel = prLabels.includes(labelName);
+
+            if (addedMigrations.length > 0) {
+              // Add label (and create if missing) when needed
+              if (!hasLabel) {
+                await ensureLabelExists();
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pull_number,
+                  labels: [labelName]
+                });
+              }
+            } else {
+              // Remove label if no DB changes remain
+              if (hasLabel) {
+                try {
+                  await github.rest.issues.removeLabel({ owner, repo, issue_number: pull_number, name: labelName });
+                } catch (e) {
+                  // Ignore 404 if label was already removed
+                  if (e.status !== 404) throw e;
+                }
+              }
+            }
