@@ -58,12 +58,6 @@ jobs:
             const regex = new RegExp(`${START}[\\s\\S]*?${END}`, "g")
             const bodySansDbChanges = oldBody.replace(regex, "").trimEnd()
             const newBody = [bodySansDbChanges, section].filter(Boolean).join("\n\n")
-            
-            console.log({
-              regex,
-              oldBody,
-              newBody,
-            })
 
             // Update PR body only if changed
             if (oldBody !== newBody) {
