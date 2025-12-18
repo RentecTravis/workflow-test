@@ -85,7 +85,7 @@ jobs:
             // Read current labels on the PR
             const prLabels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
             const hasLabel = prLabels.includes(labelName);
-            console.log({labelName, prLabels, hasLabel}
+            console.log({labelName, prLabels, hasLabel})
 
             if (addedMigrations.length > 0) {
               // Add label (and create if missing) when needed
