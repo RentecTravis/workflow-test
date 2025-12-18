@@ -74,7 +74,7 @@ jobs:
                     repo,
                     name: labelName,
                     color: '1778d3',
-                    description: 'PR introduces database migration files'
+                    description: 'This PR requires database changes.'
                   });
                 } else {
                   throw e;
