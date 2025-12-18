@@ -61,7 +61,7 @@ jobs:
             const newBody = [bodySansDbChanges, section].filter(Boolean).join("\n\n")
 
             // Update PR body only if changed
-            if ((currentBody || '') !== nextBody) {
+            if (oldBody !== newBody) {
               await github.rest.pulls.update({ owner, repo, pull_number, body: nextBody });
             }
 
