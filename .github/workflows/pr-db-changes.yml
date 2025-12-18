@@ -1,8 +1,8 @@
-name: PR Database Changes annotator
+name: Auto-flag database changes
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ jobs:
   annotate-and-label:
     runs-on: ubuntu-latest
     steps:
-      - name: Auto-add Database Changes section and label to PRs with migration files
+      - name: Auto-add "Database changes" section and label to PRs with migration files
         uses: actions/github-script@v7
         with:
           script: |
@@ -32,11 +32,11 @@ jobs:
             const targetPrefix = 'database/rentec/schema/migrations/';
             const addedMigrations = files.filter(f => f.status === 'added' && f.filename.startsWith(targetPrefix));
 
-            // Prepare Database Changes section with stable markers so we can replace it on every run
+            // Prepare Database changes section with stable markers so we can replace it on every run
             const START = '<!-- DATABASE_CHANGES_START -->';
             const END = '<!-- DATABASE_CHANGES_END -->';
             // Ensure the label state reflects presence/absence of added migrations
-            const labelName = 'Database Changes';
+            const labelName = 'Database changes';
             const heading = '### ' + labelName;
 
             const headSha = pr.head.sha;
@@ -48,7 +48,7 @@ jobs:
                 const url = `https://github.com/${owner}/${repo}/blob/${headSha}/${f.filename}`;
                 return `- [${name}](${url})`;
               });
-              section = `${START}\n${heading}\n\nThe following migration files were added in this PR:\n\n${lines.join('\n')}\n\n${END}`;
+              section = `${START}\n${heading}\n\nThis PR adds the following migration files:\n\n${lines.join('\n')}\n\n${END}`;
             }
 
             // Get current body and strip any existing section
