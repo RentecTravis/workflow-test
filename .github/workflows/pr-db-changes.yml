@@ -55,14 +55,13 @@ jobs:
 
             // Get current body and strip any existing section
             const oldBody = pr.body || ""
-            const bodySansDbChanges = oldBody
-              .replace(new RegExp(`${START}[\\s\\S]*?${END}`, "g"), "")
-              .trimEnd()
+            const regex = new RegExp(`${START}[\\s\\S]*?${END}`, "g")
+            const bodySansDbChanges = oldBody.replace(regex, "").trimEnd()
             const newBody = [bodySansDbChanges, section].filter(Boolean).join("\n\n")
 
             // Update PR body only if changed
-            if ((currentBody || '') !== nextBody) {
-              await github.rest.pulls.update({ owner, repo, pull_number, body: nextBody });
+            if (oldBody !== newBody) {
+              await github.rest.pulls.update({ owner, repo, pull_number, body: newBody });
             }
 
             async function ensureLabelExists() {
