@@ -48,6 +48,7 @@ export async function run ({github, context}) {
     await github.rest.pulls.update({ owner, repo, pull_number, body: newBody });
   }
 
+  // region labels
   // Read current labels on the PR
   const prLabels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
   const hasLabel = prLabels.includes(labelName);
@@ -90,4 +91,5 @@ export async function run ({github, context}) {
       }
     }
   }
+  // endregion
 }
