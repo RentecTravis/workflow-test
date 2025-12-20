@@ -94,6 +94,7 @@ export async function run ({github, context}) {
 
     // Count lines starting with '+' (added lines), excluding the '+++' header line
     const lines = patch.split('\n');
+    console.log(lines)
     const doLineCount = lines.filter(line => line.startsWith('+') && !line.startsWith('+++')).length;
     const doUrl = fileUrl(doFile) + '#L1-L' + (doLineCount + 1);
 
