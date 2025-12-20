@@ -23,19 +23,8 @@ export async function run ({github, context}) {
   // Ensure the label state reflects presence/absence of added migrations
   const labelName = "Database changes"
   const heading = "### " + labelName
-  const headSha = pr.head.sha
-  const lines = addedMigrations
-    .map((f) => {
-      const name = f.filename.split("/").pop()
-      const url = `https://github.com/${owner}/${repo}/blob/${headSha}/${f.filename}`
-      return `- [${name}](${url})`
-    })
-    .join("\n")
-
-  const section =
-    lines.length > 0
-      ? `${START}\n${heading}\n\nThis PR adds the following migration files:\n\n${lines}\n\n${END}`
-      : ""
+  const formattedMigrations = formatMigrations(addedMigrations)
+  const section = `${START}\n${heading}\n\n${formattedMigrations}\n\n${END}`
 
   // Get current body and strip any existing section
   const oldBody = pr.body || ""
@@ -73,23 +62,78 @@ export async function run ({github, context}) {
       if (e.status !== 404) throw e;
     }
   }
+  // endregion
 
-  async function ensureLabelExists() {
+  function formatMigrations (files) {
+    const pairs = {}
+    const regex = /^\d+.(?:un)?do.[\s\S]*?.sql$/
+
+    for (const f of files) {
+      const name = f.filename.split("/").pop()
+
+      if (regex.test(name)) {
+        const [timestamp, doOrUndo] = name.split(".")
+        pairs[timestamp] ??= {}
+        pairs[timestamp][doOrUndo] = f
+      }
+    }
+
+    const timestamps = Object.keys(pairs).sort()
+
+    if (timestamps.length === 1) {
+      const [firstTimestamp] = timestamps
+      return formatLoneMigration(pairs[firstTimestamp])
+    }
+
+    return formatMultipleMigrations(pairs)
+  }
+
+  function formatLoneMigration ({do: doFile, undo: undoFile}) {
+    // Extract the patch (diff) which contains the file content for added files
+    const patch = doFile.patch || "";
+
+    // Count lines starting with '+' (added lines), excluding the '+++' header line
+    const lines = patch.split('\n');
+    const doLineCount = lines.filter(line => line.startsWith('+') && !line.startsWith('+++')).length;
+    const doUrl = fileUrl(doFile) + '#L1-L' + (doLineCount + 1);
+
+    return `Do 👇 Undo 👉 ${fileLink(undoFile)}\n${doUrl}`
+  }
+
+  function formatMultipleMigrations () {
+    const lines = addedMigrations.map((f) => `- ${fileLink(f)}`).join("\n")
+
+    return lines.length > 0
+        ? `This PR adds the following migration files:\n\n${lines}`
+        : ""
+  }
+
+  function fileUrl(f) {
+    return `https://github.com/${owner}/${repo}/blob/${(pr.head.sha)}/${f.filename}`
+  }
+
+  function fileLink (f) {
+    return `[${(f.filename.split("/").pop())}](${fileUrl(f)})`
+  }
+
+  async function ensureLabelExists () {
     try {
-      await github.rest.issues.getLabel({ owner, repo, name: labelName });
-    } catch (e) {
+      await github.rest.issues.getLabel({owner, repo, name: labelName});
+    }
+    catch (e) {
       if (e.status === 404) {
         await github.rest.issues.createLabel({
           owner,
           repo,
-          name: labelName,
-          color: '1778d3',
+          name:        labelName,
+          color:       '1778d3',
           description: 'PR introduces database migration files'
         });
-      } else {
+      }
+      else {
         throw e;
       }
     }
   }
-  // endregion
 }
+
