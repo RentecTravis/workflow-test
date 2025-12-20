@@ -103,9 +103,10 @@ export async function run ({github, context}) {
   }
 
   function formatMultipleMigrations (pairs) {
-    const lines = pairs.map((p) => `- ${formatMigration(p, true)})`).join("\n")
+    const timestamps = Object.keys(pairs).sort()
+    const lines = timestamps.map((t) => `- ${formatMigration(pairs[t], true)})`)
     return lines.length > 0
-        ? `This PR adds the following migrations:\n\n${lines}`
+        ? `This PR adds the following migrations:\n\n${lines.join("\n")}`
         : ""
   }
 
