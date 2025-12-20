@@ -85,15 +85,14 @@ export async function run ({github, context}) {
       return formatMigration(pairs[firstTimestamp])
     }
 
-    return formatMultipleMigrations(pairs)
+    return listMigrations(pairs)
   }
 
   function formatMigration ({do: doFile, undo: undoFile}, indent = false) {
-    // Extract the patch (diff) which contains the file content for added files
     const patch = doFile.patch || "";
-
-    // Count lines starting with '+' (added lines), excluding the '+++' header line
     const lines = patch.split('\n');
+
+    // Count added lines (start with '+') but excluding '+++' header line
     const isAddedLine = line => line.startsWith('+') && !line.startsWith('+++')
     const doLineCount = lines.filter(isAddedLine).length;
     const doUrl = fileUrl(doFile) + `#L1-L${doLineCount}`;
@@ -102,12 +101,11 @@ export async function run ({github, context}) {
     return `Do 👇 Undo 👉 ${fileLink(undoFile)}\n${indentation}${doUrl}`
   }
 
-  function formatMultipleMigrations (pairs) {
+  function listMigrations (pairs) {
     const timestamps = Object.keys(pairs).sort()
     const lines = timestamps.map((t) => `- ${formatMigration(pairs[t], true)}`)
-    return lines.length > 0
-        ? `This PR adds the following migrations:\n\n${lines.join("\n")}`
-        : ""
+
+    return lines.length > 0 ? lines.join("\n") : ""
   }
 
   function fileUrl(f) {
