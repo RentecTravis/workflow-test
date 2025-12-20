@@ -48,24 +48,6 @@ export async function run ({github, context}) {
     await github.rest.pulls.update({ owner, repo, pull_number, body: newBody });
   }
 
-  async function ensureLabelExists() {
-    try {
-      await github.rest.issues.getLabel({ owner, repo, name: labelName });
-    } catch (e) {
-      if (e.status === 404) {
-        await github.rest.issues.createLabel({
-          owner,
-          repo,
-          name: labelName,
-          color: '1778d3',
-          description: 'PR introduces database migration files'
-        });
-      } else {
-        throw e;
-      }
-    }
-  }
-
   // Read current labels on the PR
   const prLabels = (pr.labels || []).map(l => typeof l === 'string' ? l : l.name);
   const hasLabel = prLabels.includes(labelName);
@@ -88,6 +70,24 @@ export async function run ({github, context}) {
     } catch (e) {
       // Ignore 404 if label was already removed
       if (e.status !== 404) throw e;
+    }
+  }
+
+  async function ensureLabelExists() {
+    try {
+      await github.rest.issues.getLabel({ owner, repo, name: labelName });
+    } catch (e) {
+      if (e.status === 404) {
+        await github.rest.issues.createLabel({
+          owner,
+          repo,
+          name: labelName,
+          color: '1778d3',
+          description: 'PR introduces database migration files'
+        });
+      } else {
+        throw e;
+      }
     }
   }
 }
