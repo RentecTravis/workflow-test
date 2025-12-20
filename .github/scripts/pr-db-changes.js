@@ -1,4 +1,6 @@
-module.exports = async ({github, context}) => {
+// noinspection JSUnresolvedReference
+// noinspection JSUnusedGlobalSymbols
+export async function run ({github, context}) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const pr = context.payload.pull_request;

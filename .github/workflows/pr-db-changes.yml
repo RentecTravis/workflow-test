@@ -20,5 +20,5 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const script = require('./.github/scripts/pr-db-changes.js')
-            await script({github, context})
+            const { run } = await import('${{ github.workspace }}/.github/scripts/pr-db-changes.js')
+            await run({github, context})
