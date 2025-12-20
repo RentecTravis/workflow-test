@@ -85,7 +85,7 @@ export async function run ({github, context}) {
       return formatMigration(pairs[firstTimestamp])
     }
 
-    return formatMigrations(pairs)
+    return formatMultipleMigrations(pairs)
   }
 
   function formatMigration ({do: doFile, undo: undoFile}, indent = false) {
@@ -102,7 +102,7 @@ export async function run ({github, context}) {
     return `Do 👇 Undo 👉 ${fileLink(undoFile)}\n${indentation}${doUrl}`
   }
 
-  function formatMigrations (pairs) {
+  function formatMultipleMigrations (pairs) {
     const lines = pairs.map((p) => `- ${formatMigration(p, true)})`).join("\n")
     return lines.length > 0
         ? `This PR adds the following migrations:\n\n${lines}`
