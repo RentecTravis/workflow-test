@@ -16,7 +16,7 @@ export async function run({ github, context }) {
 
   // Consider only newly added files under the migrations path
   const targetPrefix = "database/rentec/schema/migrations/"
-  const addedMigrations = files.filter(
+  const newMigrations = files.filter(
     (f) => f.status === "added" && f.filename.startsWith(targetPrefix)
   )
 
@@ -27,8 +27,9 @@ export async function run({ github, context }) {
   // Ensure the label state reflects presence/absence of added migrations
   const labelName = "Database changes"
   const heading = "### " + labelName
-  const formattedMigrations = formatMigrations(addedMigrations)
-  const section = `${START}\n${heading}\n\n${formattedMigrations}\n\n${END}`
+  const section = newMigrations.length
+    ? `${START}\n${heading}\n\n${(formatMigrations(newMigrations))}\n\n${END}`
+    : ""
 
   // Get current body and strip any existing section
   const oldBody = pr.body || ""
@@ -46,7 +47,7 @@ export async function run({ github, context }) {
   const labelNames = labels.map((l) => typeof l === "string" ? l : l.name)
   const hasLabel = labelNames.includes(labelName)
 
-  if (addedMigrations.length > 0) {
+  if (newMigrations.length > 0) {
     // Add label (and create if missing) when needed
     if (!hasLabel) {
       await ensureLabelExists()
