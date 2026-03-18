@@ -29,7 +29,7 @@ jobs:
           # Check if a docblock already exists above the class definition
           # We check if the line before the class PR0Callback is " */" or similar
           # This is a bit tricky with sed, using a simple check and different sed commands
-          if grep -qP "\*/\s*\n(final\s+)?(readonly\s+)?class PR0Callback" "${OLD_PATH}"; then
+          if grep -qPz "\*/\s*\n(final\s+)?(readonly\s+)?class PR0Callback" "${OLD_PATH}"; then
             echo "Existing docblock found. Appending @see to it."
             # Insert before the closing */ of the docblock that's immediately before the class
             # This uses a perl-style regex to find the */ that precedes the class definition
