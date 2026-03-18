@@ -1,0 +1,146 @@
+// noinspection JSUnresolvedReference
+// noinspection JSUnusedGlobalSymbols
+export async function run({ github, context }) {
+  const owner = context.repo.owner
+  const repo = context.repo.repo
+  const pr = context.payload.pull_request
+  const pull_number = pr.number
+
+  // Fetch changed files in the PR (paginate to be safe)
+  const files = await github.paginate(github.rest.pulls.listFiles, {
+    owner,
+    repo,
+    pull_number,
+    per_page: 100,
+  })
+
+  // Consider only newly added files under the migrations path
+  const targetPrefix = "database/rentec/schema/migrations/"
+  const newMigrations = files.filter(
+    (f) => f.status === "added" && f.filename.startsWith(targetPrefix)
+  )
+
+  // Prepare Database changes section with stable markers so we can replace it on every run
+  const START = "<!-- DATABASE_CHANGES_START -->"
+  const END = "<!-- DATABASE_CHANGES_END -->"
+
+  // Ensure the label state reflects presence/absence of added migrations
+  const labelName = "Database changes"
+  const heading = "### " + labelName
+  const section = newMigrations.length
+    ? `${START}\n${heading}\n\n${(formatMigrations(newMigrations))}\n\n${END}`
+    : ""
+
+  // Get current body and strip any existing section
+  const oldBody = pr.body || ""
+  const regex = new RegExp(`${START}[\\s\\S]*?${END}`, "g")
+  const bodySansDbChanges = oldBody.replace(regex, "").trimEnd()
+  const newBody = [bodySansDbChanges, section].filter(Boolean).join("\n\n")
+
+  // Update PR body only if changed
+  if (oldBody !== newBody) {
+    await github.rest.pulls.update({ owner, repo, pull_number, body: newBody })
+  }
+
+  // Read current labels on the PR
+  const { labels = [] } = pr
+  const labelNames = labels.map((l) => typeof l === "string" ? l : l.name)
+  const hasLabel = labelNames.includes(labelName)
+
+  if (newMigrations.length > 0) {
+    // Add label (and create if missing) when needed
+    if (!hasLabel) {
+      await ensureLabelExists()
+      await github.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number: pull_number,
+        labels: [labelName],
+      })
+    }
+  } else if (hasLabel) {
+    // Remove label if no DB changes remain
+    try {
+      await github.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: pull_number,
+        name: labelName,
+      })
+    } catch (e) {
+      // Ignore 404 if label was already removed
+      if (e.status !== 404) throw e
+    }
+  }
+
+  function formatMigrations(files) {
+    const pairs = {}
+    const regex = /^\d+.(?:un)?do.[\s\S]*?.sql$/
+
+    for (const f of files) {
+      const name = f.filename.split("/").pop()
+
+      if (regex.test(name)) {
+        const [timestamp, doOrUndo] = name.split(".")
+        pairs[timestamp] ??= {}
+        pairs[timestamp][doOrUndo] = f
+      }
+    }
+
+    const timestamps = Object.keys(pairs).sort()
+
+    if (timestamps.length === 1) {
+      const [firstTimestamp] = timestamps
+      return formatMigration(pairs[firstTimestamp])
+    }
+
+    return listMigrations(pairs)
+  }
+
+  function formatMigration({ do: doFile, undo: undoFile }, indent = false) {
+    const patch = doFile.patch || ""
+    const lines = patch.split("\n")
+
+    // Count added lines (start with '+') but excluding '+++' header line
+    const isAddedLine = (line) =>
+      line.startsWith("+") && !line.startsWith("+++")
+    const doLineCount = lines.filter(isAddedLine).length
+    const doUrl = fileUrl(doFile) + `#L1-L${doLineCount}`
+    const indentation = indent ? "    " : ""
+
+    return `Do 👇 Undo 👉 ${fileLink(undoFile)}\n${indentation}${doUrl}`
+  }
+
+  function listMigrations(pairs) {
+    const timestamps = Object.keys(pairs).sort()
+    const lines = timestamps.map((t) => `- ${formatMigration(pairs[t], true)}`)
+
+    return lines.length > 0 ? lines.join("\n") : ""
+  }
+
+  function fileUrl(f) {
+    return `https://github.com/${owner}/${repo}/blob/${pr.head.sha}/${f.filename}`
+  }
+
+  function fileLink(f) {
+    return `[${f.filename.split("/").pop()}](${fileUrl(f)})`
+  }
+
+  async function ensureLabelExists() {
+    try {
+      await github.rest.issues.getLabel({ owner, repo, name: labelName })
+    } catch (e) {
+      if (e.status === 404) {
+        await github.rest.issues.createLabel({
+          owner,
+          repo,
+          name: labelName,
+          color: "1778d3",
+          description: "PR introduces database migration files",
+        })
+      } else {
+        throw e
+      }
+    }
+  }
+}
