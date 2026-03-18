@@ -7,10 +7,7 @@ use Rentec\BackOffice\Feature\WhatsNew\Visibility\Callback;
  * @todo Delete this file before merging the PR that introduces it
  * @noinspection PhpUnused
  */
-/**
- * @see https://github.com/RentecTravis/workflow-test/pull/8
- */
-final readonly class PR8Callback implements Callback {
+final readonly class PR0Callback implements Callback {
     public function getDescription(): string
     {
         return 'Hide announcement on mobile';
