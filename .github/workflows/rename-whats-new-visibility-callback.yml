@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - '../../classes/Feature/WhatsNew/Visibility/PR0Callback.php'
+      - 'classes/Feature/WhatsNew/Visibility/PR0Callback.php'
 
 permissions:
   contents: write
@@ -15,8 +15,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
 
       - name: Rename PR0Callback.php, update class name and add docblock
         if: hashFiles('classes/Feature/WhatsNew/Visibility/PR0Callback.php') != ''
@@ -31,14 +29,14 @@ jobs:
           # Check if a docblock already exists above the class definition
           # We check if the line before the class PR0Callback is " */" or similar
           # This is a bit tricky with sed, using a simple check and different sed commands
-          if grep -qP "\*/\s*\n(final\s+)?(readonly\s+)?class PR0Callback" "${OLD_PATH}"; then
+          if grep -qPz "\*/\s*\n(final\s+)?(readonly\s+)?class PR0Callback" "${OLD_PATH}"; then
             echo "Existing docblock found. Appending @see to it."
             # Insert before the closing */ of the docblock that's immediately before the class
             # This uses a perl-style regex to find the */ that precedes the class definition
             perl -i -0777 -pe "s/(\s*\*\/)(\s+(final\s+)?(readonly\s+)?class PR0Callback)/\n * \@see ${PR_URL}\n\$1\$2/s" "${OLD_PATH}"
           else
             echo "No existing docblock found. Creating a new one."
-            sed -i "/\(final\s\+\)\?\(readonly\s\+\)\?class PR0Callback/i \/**\n * @see ${PR_URL}\n *\/" "${OLD_PATH}"
+            sed -i "/\(final\s\+\)\?\(readonly\s\+\)\?class PR0Callback/i \/** @see ${PR_URL} *\/" "${OLD_PATH}"
           fi
 
           echo "Replacing PR0Callback with PR${PR_NUMBER}Callback in ${OLD_PATH}"
