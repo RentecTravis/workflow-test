@@ -1,4 +1,5 @@
 name: Rename placeholder whats-new visibility callback with actual pr number
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
