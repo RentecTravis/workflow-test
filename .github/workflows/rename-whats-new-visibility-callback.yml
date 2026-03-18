@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
-      - '../../classes/Feature/WhatsNew/Visibility/PR0Callback.php'
+      - 'classes/Feature/WhatsNew/Visibility/PR0Callback.php'
 
 permissions:
   contents: write
